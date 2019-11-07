@@ -1,7 +1,8 @@
 import argparse
-import re
+import pynmea2
 
 import simplekml
+
 
 def parse_args():
     """
@@ -44,23 +45,23 @@ def to_kml(filename, kml_filename):
 
     with open(filename, 'r') as file:
 
-        line = file.readline()
-
-        # Regex to make sure line being parsed is not corrupted or incomplete
-        pattern = re.compile('(lng=)-?[0-9]+(\.)[0-9]+(, lat=)-?[0-9]+(\.)[0-9]+(, altitude=)-?[0-9]+(\.)[0-9]+'
-                             '(, speed=)[0-9]+(\.)[0-9]+(, satellites=)[0-9]+(, angle=)[0-9]+(\.)[0-9]+'
-                             '(, fixquality=)[0-9]+')
+        line = file.readline()  # Reads line from file
 
         while line:
 
             # If line is valid
-            if pattern.match(line):  # Checks to make sure line is valid
+            if '$GPRMC' in line:  # Checks to make sure line is correct type TODO - Make more efficient
 
-                # Splits line into long, lat, and speed
-                split_coords = line.split(', ')
-                long = split_coords[0][4:]
-                lat = split_coords[1][4:]
-                speed = split_coords[3][6:]
+                try:
+                    parsed_data = pynmea2.parse(line)
+                except pynmea2.ChecksumError:  # If line is corrupted
+                    line = file.readline()
+                    continue  # Skips to next line
+
+                # Gets long, lat, and speed from parsed data
+                long = parsed_data.longitude
+                lat = parsed_data.latitude
+                speed = parsed_data.spd_over_grnd
 
                 # If the car has moved
                 if last_long != long or last_lat != lat:
@@ -83,7 +84,7 @@ def to_kml(filename, kml_filename):
 
 
 def main():
-    
+
     filename, kml_filename = parse_args()
 
     to_kml(filename, kml_filename)
