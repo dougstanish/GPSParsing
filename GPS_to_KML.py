@@ -77,6 +77,8 @@ def to_kml(filename):
                 lat = parsed_data.latitude
                 speed = parsed_data.spd_over_grnd
 
+                direction = parsed_data.true_course  # Angle of travel in degrees, currently unused
+
                 # If the car has moved based off of position difference
                 if last_long != long or last_lat != lat:
 
@@ -148,6 +150,8 @@ def main():
         to_kml(file)  # Converts to kml file
 
     # TODO - Detect left turns, start and end boxes
+
+    # TODO - Left Turns - keep track of last X points, keep track of headings
 
 
 if __name__ == '__main__':
