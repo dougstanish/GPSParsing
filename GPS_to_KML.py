@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+from pathlib import Path
 
 import pynmea2
 
@@ -23,18 +24,22 @@ def parse_args():
     return args.GPS_Filename, args.KML_Filename
 
 
-def to_kml(filename, kml_filename):
-
+def to_kml(filename):
+    """
+    Reads in GPS file, and outputs a KML file
+    :param filename: The GPS file
+    """
     # Creates KML file
     kml = simplekml.Kml()
 
+    # Defines what altitude will represent
     linestring = kml.newlinestring(description='Speed in Knots, instead of altitude.')
 
+    # Sets color and size of the line
     linestring.style.color = simplekml.Color.yellow
     linestring.style.width = 6
 
-
-
+    # Line settings
     linestring.extrude = 1
     linestring.tesselate = 1
 
@@ -51,8 +56,7 @@ def to_kml(filename, kml_filename):
     last_stop_long = 0
     last_stop_lat = 0
 
-    print(f'Filename = {filename}')
-
+    # Opens the file
     with open(filename, 'r') as file:
 
         line = file.readline()  # Reads line from file
@@ -63,7 +67,7 @@ def to_kml(filename, kml_filename):
             if '$GPRMC' in line:  # Checks to make sure line is correct type TODO - Make more efficient
 
                 try:
-                    parsed_data = pynmea2.parse(line)
+                    parsed_data = pynmea2.parse(line)  # Attempts to parse the line
                 except pynmea2.ChecksumError:  # If line is corrupted
                     line = file.readline()
                     continue  # Skips to next line
@@ -73,60 +77,75 @@ def to_kml(filename, kml_filename):
                 lat = parsed_data.latitude
                 speed = parsed_data.spd_over_grnd
 
-                # If the car has moved
+                # If the car has moved based off of position difference
                 if last_long != long or last_lat != lat:
 
-                    # If the car is moving
+                    # If the car is moving based on speed
                     if speed != '0' or last_speed != speed:
 
-                        was_stop = False
+                        was_stop = False  # Tells that the last point was not a stop
 
                         # Adds coords to kml
                         coords.append([float(long), float(lat), float(speed)])
 
+                        # Saves point coords of last location, used to check for stops
                         last_lat = lat
                         last_long = long
                         last_speed = speed
 
                     else:
 
-                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) and not isclose(long, last_stop_long, abs_tol=10**-4):
+                        # Otherwise, if this is the first point of a stop
+                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) \
+                                and not isclose(long, last_stop_long, abs_tol=10**-4):
+
+                            # Saves the stop as a point on the map
                             pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
+
+                            # Tracks that this was as top
                             was_stop = True
                             last_stop_long = long
                             last_stop_lat = lat
 
-                else:
-                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) and not isclose(long,
-                                                                                                          last_stop_long,
-                                                                                                          abs_tol=10 ** -4):
+                else:  # If not moving
+
+                    # Otherwise, if this is the first point of a stop
+                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
+                            and not isclose(long, last_stop_long, abs_tol=10 ** -4):
+
+                        # Saves stop as point
                         pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
+
+                        # Tracks that this was as top
                         was_stop = True
                         last_stop_long = long
                         last_stop_lat = lat
 
+            # Reads next line
             line = file.readline()
 
+    # Saves all KML coords to the file
     linestring.coords = coords  # Sets kml coords to coords
 
-    kml.save('./kml/' + os.path.split(os.path.basename(filename))[0] + '.kml')
+    Path("./kml").mkdir(exist_ok=True)
+
+    # Saves the KML file
+    kml.save('./kml/' + os.path.basename(filename) + '.kml')
 
 
 def main():
 
-    filename, kml_filename = parse_args()
+    # filename, kml_filename = parse_args()
 
-    print("Got here")
-
+    # Reads raw GPS files from a gps directory
     gps_files = glob.glob('./gps/*.txt')
 
-    print(gps_files)
-
+    # For each GPS file
     for file in gps_files:
-        print(file)
-        to_kml(file, None)
 
-    # to_kml(filename, kml_filename)
+        print(f'Now parsing {file}')
+
+        to_kml(file)  # Converts to kml file
 
     # TODO - Detect left turns, start and end boxes
 
