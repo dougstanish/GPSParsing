@@ -1,6 +1,10 @@
 import argparse
+import glob
+import os
+
 import pynmea2
 
+from math import isclose
 import simplekml
 
 
@@ -39,9 +43,15 @@ def to_kml(filename, kml_filename):
 
     coords = []
 
-    last_long = ''
-    last_lat = ''
+    last_long = 0
+    last_lat = 0
     last_speed = ''
+
+    was_stop = False
+    last_stop_long = 0
+    last_stop_lat = 0
+
+    print(f'Filename = {filename}')
 
     with open(filename, 'r') as file:
 
@@ -69,6 +79,8 @@ def to_kml(filename, kml_filename):
                     # If the car is moving
                     if speed != '0' or last_speed != speed:
 
+                        was_stop = False
+
                         # Adds coords to kml
                         coords.append([float(long), float(lat), float(speed)])
 
@@ -76,18 +88,47 @@ def to_kml(filename, kml_filename):
                         last_long = long
                         last_speed = speed
 
+                    else:
+
+                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) and not isclose(long, last_stop_long, abs_tol=10**-4):
+                            pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
+                            was_stop = True
+                            last_stop_long = long
+                            last_stop_lat = lat
+
+                else:
+                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) and not isclose(long,
+                                                                                                          last_stop_long,
+                                                                                                          abs_tol=10 ** -4):
+                        pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
+                        was_stop = True
+                        last_stop_long = long
+                        last_stop_lat = lat
+
             line = file.readline()
 
     linestring.coords = coords  # Sets kml coords to coords
 
-    kml.save(kml_filename)
+    kml.save('./kml/' + os.path.split(os.path.basename(filename))[0] + '.kml')
 
 
 def main():
 
     filename, kml_filename = parse_args()
 
-    to_kml(filename, kml_filename)
+    print("Got here")
+
+    gps_files = glob.glob('./gps/*.txt')
+
+    print(gps_files)
+
+    for file in gps_files:
+        print(file)
+        to_kml(file, None)
+
+    # to_kml(filename, kml_filename)
+
+    # TODO - Detect left turns, start and end boxes
 
 
 if __name__ == '__main__':
