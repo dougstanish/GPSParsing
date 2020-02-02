@@ -56,6 +56,11 @@ def to_kml(filename):
     last_stop_long = 0
     last_stop_lat = 0
 
+    school_zone_nw_lat = 43.087982
+    school_zone_nw_long = -77.682416
+    school_zone_se_lat = 43.085117
+    school_zone_se_long = -77.678254
+
     # Opens the file
     with open(filename, 'r') as file:
 
@@ -79,49 +84,55 @@ def to_kml(filename):
 
                 direction = parsed_data.true_course  # Angle of travel in degrees, currently unused
 
-                # If the car has moved based off of position difference
-                if last_long != long or last_lat != lat:
+                # Attempt to box school
+                if ((school_zone_se_long < long < school_zone_nw_long) and (
+                        school_zone_se_lat < lat < school_zone_nw_lat)):
+                    pass
+                else:
 
-                    # If the car is moving based on speed
-                    if speed != '0' or last_speed != speed:
+                    # If the car has moved based off of position difference
+                    if last_long != long or last_lat != lat:
 
-                        was_stop = False  # Tells that the last point was not a stop
+                        # If the car is moving based on speed
+                        if speed != '0' or last_speed != speed:
 
-                        # Adds coords to kml
-                        coords.append([float(long), float(lat), float(speed)])
+                            was_stop = False  # Tells that the last point was not a stop
 
-                        # Saves point coords of last location, used to check for stops
-                        last_lat = lat
-                        last_long = long
-                        last_speed = speed
+                            # Adds coords to kml
+                            coords.append([float(long), float(lat), float(speed)])
 
-                    else:
+                            # Saves point coords of last location, used to check for stops
+                            last_lat = lat
+                            last_long = long
+                            last_speed = speed
+
+                        else:
+
+                            # Otherwise, if this is the first point of a stop
+                            if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) \
+                                    and not isclose(long, last_stop_long, abs_tol=10**-4):
+
+                                # Saves the stop as a point on the map
+                                pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
+
+                                # Tracks that this was as top
+                                was_stop = True
+                                last_stop_long = long
+                                last_stop_lat = lat
+
+                    else:  # If not moving
 
                         # Otherwise, if this is the first point of a stop
-                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) \
-                                and not isclose(long, last_stop_long, abs_tol=10**-4):
+                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
+                                and not isclose(long, last_stop_long, abs_tol=10 ** -4):
 
-                            # Saves the stop as a point on the map
+                            # Saves stop as point
                             pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
 
                             # Tracks that this was as top
                             was_stop = True
                             last_stop_long = long
                             last_stop_lat = lat
-
-                else:  # If not moving
-
-                    # Otherwise, if this is the first point of a stop
-                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
-                            and not isclose(long, last_stop_long, abs_tol=10 ** -4):
-
-                        # Saves stop as point
-                        pnt = kml.newpoint(description='Stoplight', coords=[(long, lat)])
-
-                        # Tracks that this was as top
-                        was_stop = True
-                        last_stop_long = long
-                        last_stop_lat = lat
 
             # Reads next line
             line = file.readline()
