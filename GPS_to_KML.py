@@ -61,6 +61,17 @@ def to_kml(filename):
     school_zone_se_lat = 43.085117
     school_zone_se_long = -77.678254
 
+    school_zone = kml.newgroundoverlay(name='School')
+
+    school_zone.latlonbox.north = 43.087982
+    school_zone.latlonbox.south = 43.085117
+    school_zone.latlonbox.east = -77.678254
+    school_zone.latlonbox.west = -77.682416
+
+    school_zone.color = '7F0000ff'
+
+    school_zone.altitude = 300
+
     # Opens the file
     with open(filename, 'r') as file:
 
@@ -85,10 +96,8 @@ def to_kml(filename):
                 direction = parsed_data.true_course  # Angle of travel in degrees, currently unused
 
                 # Attempt to box school
-                if ((school_zone_se_long < long < school_zone_nw_long) and (
+                if not ((school_zone_se_long > long > school_zone_nw_long) and (
                         school_zone_se_lat < lat < school_zone_nw_lat)):
-                    pass
-                else:
 
                     # If the car has moved based off of position difference
                     if last_long != long or last_lat != lat:
