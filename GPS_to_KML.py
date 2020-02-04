@@ -61,16 +61,32 @@ def to_kml(filename):
     school_zone_se_lat = 43.085117
     school_zone_se_long = -77.678254
 
+    driveway_nw_lat = 43.138589
+    driveway_nw_long = -77.438104
+    driveway_se_lat = 43.137629
+    driveway_se_long = -77.437092
+
     school_zone = kml.newgroundoverlay(name='School')
 
-    school_zone.latlonbox.north = 43.087982
-    school_zone.latlonbox.south = 43.085117
-    school_zone.latlonbox.east = -77.678254
-    school_zone.latlonbox.west = -77.682416
+    school_zone.latlonbox.north = school_zone_nw_lat
+    school_zone.latlonbox.south = school_zone_se_lat
+    school_zone.latlonbox.east = school_zone_se_long
+    school_zone.latlonbox.west = school_zone_nw_long
 
     school_zone.color = '7F0000ff'
 
     school_zone.altitude = 300
+
+    driveway = kml.newgroundoverlay(name='Driveway')
+
+    driveway.latlonbox.north = driveway_nw_lat
+    driveway.latlonbox.south = driveway_se_lat
+    driveway.latlonbox.east = driveway_se_long
+    driveway.latlonbox.west = driveway_nw_long
+
+    driveway.color = '7Fff0000'
+
+    driveway.altitude = 300
 
     # Opens the file
     with open(filename, 'r') as file:
@@ -97,12 +113,14 @@ def to_kml(filename):
 
                 # Attempt to box school
                 if not ((school_zone_se_long > long > school_zone_nw_long) and (
-                        school_zone_se_lat < lat < school_zone_nw_lat)):
+                        school_zone_se_lat < lat < school_zone_nw_lat)) and not \
+                        ((driveway_se_long > long > driveway_nw_long) and (
+                        driveway_se_lat < lat < driveway_nw_lat)):
 
                     # If the car has moved based off of position difference
                     if last_long != long or last_lat != lat:
 
-                        # If the car is moving based on speed
+                        # If the car is moving based onspeed
                         if speed != '0' or last_speed != speed:
 
                             was_stop = False  # Tells that the last point was not a stop
