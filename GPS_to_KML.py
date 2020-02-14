@@ -143,10 +143,11 @@ def to_kml(gps_data):
     :param gps_data: The GPS data
     """
     # Creates KML file
-    kml = simplekml.Kml()
+    kml_route = simplekml.Kml()
+    kml_stops = simplekml.Kml()
 
     # Defines what altitude will represent
-    linestring = kml.newlinestring(description='Speed in Knots, instead of altitude.')
+    linestring = kml_route.newlinestring(description='Speed in Knots, instead of altitude.')
 
     # Sets color and size of the line
     linestring.style.color = simplekml.Color.yellow
@@ -169,7 +170,7 @@ def to_kml(gps_data):
     driveway_se_lat = 43.137629
     driveway_se_long = -77.437092
 
-    school_zone = kml.newgroundoverlay(name='School')
+    school_zone = kml_route.newgroundoverlay(name='School')
 
     school_zone.latlonbox.north = school_zone_nw_lat
     school_zone.latlonbox.south = school_zone_se_lat
@@ -180,7 +181,7 @@ def to_kml(gps_data):
 
     school_zone.altitude = 300
 
-    driveway = kml.newgroundoverlay(name='Driveway')
+    driveway = kml_route.newgroundoverlay(name='Driveway')
 
     driveway.latlonbox.north = driveway_nw_lat
     driveway.latlonbox.south = driveway_se_lat
@@ -205,7 +206,7 @@ def to_kml(gps_data):
             ])
 
     # Saves all KML coords to the file
-    linestring.coords = coords  # Sets kml coords to coords
+    linestring.coords = coords  # Sets kml_route coords to coords
 
     for point in gps_data['Points']:
 
@@ -214,7 +215,7 @@ def to_kml(gps_data):
                 ((driveway_se_long > point['Long'] > driveway_nw_long) and (
                         driveway_se_lat < point['Lat'] < driveway_nw_lat)):
 
-            kml.newpoint(
+            kml_stops.newpoint(
                 name=point['Name'],
                 description=f"{point['Time']} {point['Date']}",
                 coords=[(point['Long'], point['Lat'])]
@@ -223,7 +224,8 @@ def to_kml(gps_data):
     Path("./kml").mkdir(exist_ok=True)
 
     # Saves the KML file
-    kml.save('./kml/' + os.path.basename(gps_data['Filename']) + '.kml')
+    kml_route.save('./kml/' + os.path.basename(gps_data['Filename']) + '_route_' + '.kml')
+    kml_stops.save('./kml/' + os.path.basename(gps_data['Filename']) + '_stops_' + '.kml')
 
 
 def main():
