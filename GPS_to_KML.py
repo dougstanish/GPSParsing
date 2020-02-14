@@ -120,7 +120,7 @@ def to_kml(filename):
                     # If the car has moved based off of position difference
                     if last_long != long or last_lat != lat:
 
-                        # If the car is moving based onspeed
+                        # If the car is moving based on speed
                         if speed != '0' or last_speed != speed:
 
                             was_stop = False  # Tells that the last point was not a stop
