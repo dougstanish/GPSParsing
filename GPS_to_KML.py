@@ -208,11 +208,17 @@ def to_kml(gps_data):
     linestring.coords = coords  # Sets kml coords to coords
 
     for point in gps_data['Points']:
-        kml.newpoint(
-            name=point['Name'],
-            description=f"{point['Time']} {point['Date']}",
-            coords=[(point['Long'], point['Lat'])]
-        )
+
+        if not ((school_zone_se_long > point['Long'] > school_zone_nw_long) and (
+                school_zone_se_lat < point['Lat'] < school_zone_nw_lat)) and not \
+                ((driveway_se_long > point['Long'] > driveway_nw_long) and (
+                        driveway_se_lat < point['Lat'] < driveway_nw_lat)):
+
+            kml.newpoint(
+                name=point['Name'],
+                description=f"{point['Time']} {point['Date']}",
+                coords=[(point['Long'], point['Lat'])]
+            )
 
     Path("./kml").mkdir(exist_ok=True)
 
