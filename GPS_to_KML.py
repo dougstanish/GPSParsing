@@ -74,18 +74,21 @@ def process_gps(filename):
 
                         was_stop = False  # Tells that the last point was not a stop
 
-                        # Adds coords to kml
-                        coords.append({
-                            'Long': float(long),
-                            'Lat': float(lat),
-                            'Speed': float(speed),
-                            'Angle': float(angle)
-                        })
+                        # Ensures there was not an error that records point at 0 lat 0 long
+                        if not isclose(lat, 0, abs_tol=10**-3) and not isclose(long, 0, abs_tol=10**-3):
 
-                        # Saves point coords of last location, used to check for stops
-                        last_lat = lat
-                        last_long = long
-                        last_speed = speed
+                            # Adds coords to kml
+                            coords.append({
+                                'Long': float(long),
+                                'Lat': float(lat),
+                                'Speed': float(speed),
+                                'Angle': float(angle)
+                            })
+
+                            # Saves point coords of last location, used to check for stops
+                            last_lat = lat
+                            last_long = long
+                            last_speed = speed
 
                     else:
 
