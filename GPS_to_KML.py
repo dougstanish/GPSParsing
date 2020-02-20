@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import glob
 import os
 from pathlib import Path
@@ -104,16 +105,76 @@ def create_paths(datapoints):
     :param datapoints:
     :return:
     """
+
+    paths = []
+
     path = {
         'Description': 'Altitude information is replaced with speed in knots',
-        'Color': '7F00ff00',
+        'Color': '7FD278F0',
         'Coords': []
     }
 
-    for point in datapoints:
-        path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
+    # Convert speed to color
+    # If current path is same color, add
+    # Otherwise, make new path
 
-    return path
+    initial_timestamp = None
+
+    total = 0
+
+    for point in datapoints:
+
+        if initial_timestamp is None:
+            initial_timestamp = datetime.datetime.combine(datetime.date.today(), point['Time'])
+
+        if point['Speed'] <= 4.345:
+            # color = '7F1617A5'
+            color = '7FD278F0'
+        elif point['Speed'] <= 8.689:
+            color = '7F2828EC'
+        elif point['Speed'] <= 13.034:
+            color = '7F319CDE'
+        elif point['Speed'] <= 17.379:
+            color = '7F63EFF7'
+        else:
+            color = '7F8DE087'
+        if color == path['Color']:
+            path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
+
+        else:
+            path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
+
+            # print(f'Initial = {initial_timestamp}')
+            # print(f'Last = {point["Time"]}')
+
+            last_point = datetime.datetime.combine(datetime.date.today(), point['Time'])
+
+            try:
+                difference = last_point - initial_timestamp
+            except TypeError as e:
+                print(f'Shit\'s fucked {e}')
+
+            # print(f'Total = {difference}')
+
+            total += difference.seconds
+
+            paths.append(path)
+
+            path = {
+                'Description': 'Altitude information is replaced with speed in knots',
+                'Color': color,
+                'Coords': []
+            }
+
+            initial_timestamp = last_point
+
+            path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
+
+    paths.append(path)
+
+    print(str(total//60))
+
+    return paths
 
 
 def detect_left_turns(datapoints):
@@ -132,8 +193,8 @@ def process_gps(filename):
     """
     raw_data = read_file(filename)
     clean_data = clean_datapoints(raw_data)
-    path = create_paths(clean_data['Coords'])
-    write_path(path, filename)
+    paths = create_paths(clean_data['Coords'])
+    write_path(paths, filename)
     write_hazards(clean_data['Points'], filename)
 
 
@@ -143,14 +204,21 @@ def write_path(path_data, filename):
     :param path_data:
     :return:
     """
+
     kml = simplekml.Kml()
-    ls = kml.newlinestring(description=path_data['Description'])
-    ls.extrude = 1
-    ls.tesselate = 1
-    ls.altitudemode = simplekml.AltitudeMode.relativetoground
-    ls.coords = path_data['Coords']
-    ls.style.linestyle.width = 6
-    ls.style.linestyle.color = path_data['Color']
+
+    count = 0
+
+    for path in path_data:
+        ls = kml.newlinestring(description=path['Description'])
+        ls.extrude = 1
+        ls.tesselate = 1
+        ls.altitudemode = simplekml.AltitudeMode.relativetoground
+        ls.coords = path['Coords']
+        ls.style.linestyle.width = 6
+        ls.style.linestyle.color = path['Color']
+
+        count += 1
 
     Path("./kml").mkdir(exist_ok=True)
 
