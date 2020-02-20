@@ -96,7 +96,33 @@ def process_gps(filename):
                         if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) \
                                 and not isclose(long, last_stop_long, abs_tol=10**-4):
 
-                            # Saves the stop as a point on the map
+                            # Ensures there was not an error that records point at 0 lat 0 long
+                            if not isclose(lat, 0, abs_tol=10 ** -3) and not isclose(long, 0, abs_tol=10 ** -3):
+
+                                # Saves the stop as a point on the map
+                                points.append({
+                                    'Long': float(long),
+                                    'Lat': float(lat),
+                                    'Name': 'Stop',
+                                    'Date': date,
+                                    'Time': time
+                                })
+
+                                # Tracks that this was a stop
+                                was_stop = True
+                                last_stop_long = long
+                                last_stop_lat = lat
+
+                else:  # If not moving
+
+                    # Otherwise, if this is the first point of a stop
+                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
+                            and not isclose(long, last_stop_long, abs_tol=10 ** -4):
+
+                        # Ensures there was not an error that records point at 0 lat 0 long
+                        if not isclose(lat, 0, abs_tol=10 ** -3) and not isclose(long, 0, abs_tol=10 ** -3):
+
+                            # Saves stop as point
                             points.append({
                                 'Long': float(long),
                                 'Lat': float(lat),
@@ -109,26 +135,6 @@ def process_gps(filename):
                             was_stop = True
                             last_stop_long = long
                             last_stop_lat = lat
-
-                else:  # If not moving
-
-                    # Otherwise, if this is the first point of a stop
-                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
-                            and not isclose(long, last_stop_long, abs_tol=10 ** -4):
-
-                        # Saves stop as point
-                        points.append({
-                            'Long': float(long),
-                            'Lat': float(lat),
-                            'Name': 'Stop',
-                            'Date': date,
-                            'Time': time
-                        })
-
-                        # Tracks that this was a stop
-                        was_stop = True
-                        last_stop_long = long
-                        last_stop_lat = lat
 
             # Reads next line
             line = file.readline()
