@@ -9,221 +9,171 @@ from math import isclose
 import simplekml
 
 
-def parse_args():
-    """
-    Parses arguments
-    :return: The filename and the target variable
-    """
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("GPS_Filename", help='The data file\'s name')  # Adds filename arg
-    parser.add_argument('KML_Filename', help='The KML filename to output to') # Adds destination filename
-
-    args = parser.parse_args()  # Parses the args
-
-    return args.GPS_Filename, args.KML_Filename
-
-
-def process_gps(filename):
-    """
-    Reads in GPS file and parses data to potentially be used in KML file
-    :param filename: The GPS file
-    :return: A dictionary of relevant data to be written to KML
+def read_file(filename):
     """
 
-    gps_data = {}
-    coords = []
-    points = []
+    :param filename:
+    :return:
+    """
+    raw_data = []
+
+    with open(filename, 'r') as file:
+
+        line = file.readline()
+
+        while line:
+
+            if '$GPRMC' in line:
+
+                try:
+                    parsed_data = pynmea2.parse(line)
+                except pynmea2.ChecksumError:
+                    line = file.readline()
+                    continue
+
+                if parsed_data.status == 'A':
+
+                    angle = parsed_data.true_course
+                    date = parsed_data.datestamp
+                    lat = parsed_data.latitude
+                    long = parsed_data.longitude
+                    speed = parsed_data.spd_over_grnd
+                    time = parsed_data.timestamp
+
+                    raw_data.append({
+                        'Angle': float(angle),
+                        'Date': date,
+                        'Lat': float(lat),
+                        'Long': float(long),
+                        'Speed': float(speed),
+                        'Time': time
+                    })
+
+            line = file.readline()
+
+        return raw_data
+
+
+def clean_datapoints(datapoints):
+    """
+
+    :param datapoints:
+    :return:
+    """
+    clean_data = {
+        'Coords': [],
+        'Points': []
+    }
 
     last_lat = 0
     last_long = 0
-    last_speed = ''
+    last_speed = 0
     was_stop = False
     last_stop_long = 0
     last_stop_lat = 0
 
-    # Opens the file
-    with open(filename, 'r') as file:
+    for point in datapoints:
+        if last_long != point['Long'] or last_lat != point['Lat']:
+            if point['Speed'] != 0 or last_speed != point['Speed']:
+                was_stop = False
+                clean_data['Coords'].append(point)
+                last_lat = point['Lat']
+                last_long = point['Long']
+                last_speed = point['Speed']
+            else:
+                if not was_stop and not isclose(point['Lat'], last_stop_lat, abs_tol=10**-4) \
+                        and not isclose(point['Long'], last_stop_long, abs_tol=10**-4):
+                    clean_data['Points'].append(point)
+                    was_stop = True
+                    last_stop_long = point['Long']
+                    last_stop_lat = point['Lat']
+        else:
+            if not was_stop and not isclose(point['Lat'], last_stop_lat, abs_tol=10 ** -4) \
+                    and not isclose(point['Long'], last_stop_long, abs_tol=10 ** -4):
+                clean_data['Points'].append(point)
+                was_stop = True
+                last_stop_long = point['Long']
+                last_stop_lat = point['Lat']
 
-        line = file.readline()  # Reads line from file
-
-        while line:
-
-            # If line is valid
-            if '$GPRMC' in line:  # Checks to make sure line is correct type TODO - Make more efficient
-
-                try:
-                    parsed_data = pynmea2.parse(line)  # Attempts to parse the line
-                except pynmea2.ChecksumError:  # If line is corrupted
-                    line = file.readline()
-                    continue  # Skips to next line
-
-                # Gets long, lat, and speed from parsed data
-                long = parsed_data.longitude
-                lat = parsed_data.latitude
-                speed = parsed_data.spd_over_grnd
-                angle = parsed_data.true_course  # Angle of travel in degrees, currently unused
-                date = parsed_data.datestamp
-                time = parsed_data.timestamp
-
-                # If the car has moved based off of position difference
-                if last_long != long or last_lat != lat:
-
-                    # If the car is moving based onspeed
-                    if speed != '0' or last_speed != speed:
-
-                        was_stop = False  # Tells that the last point was not a stop
-
-                        # Adds coords to kml
-                        coords.append({
-                            'Long': float(long),
-                            'Lat': float(lat),
-                            'Speed': float(speed),
-                            'Angle': float(angle)
-                        })
-
-                        # Saves point coords of last location, used to check for stops
-                        last_lat = lat
-                        last_long = long
-                        last_speed = speed
-
-                    else:
-
-                        # Otherwise, if this is the first point of a stop
-                        if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10**-4) \
-                                and not isclose(long, last_stop_long, abs_tol=10**-4):
-
-                            # Saves the stop as a point on the map
-                            points.append({
-                                'Long': float(long),
-                                'Lat': float(lat),
-                                'Name': 'Stop',
-                                'Date': date,
-                                'Time': time
-                            })
-
-                            # Tracks that this was a stop
-                            was_stop = True
-                            last_stop_long = long
-                            last_stop_lat = lat
-
-                else:  # If not moving
-
-                    # Otherwise, if this is the first point of a stop
-                    if not was_stop and not isclose(lat, last_stop_lat, abs_tol=10 ** -4) \
-                            and not isclose(long, last_stop_long, abs_tol=10 ** -4):
-
-                        # Saves stop as point
-                        points.append({
-                            'Long': float(long),
-                            'Lat': float(lat),
-                            'Name': 'Stop',
-                            'Date': date,
-                            'Time': time
-                        })
-
-                        # Tracks that this was a stop
-                        was_stop = True
-                        last_stop_long = long
-                        last_stop_lat = lat
-
-            # Reads next line
-            line = file.readline()
-
-    gps_data['Coords'] = coords
-    gps_data['Points'] = points
-    gps_data['Filename'] = os.path.splitext(filename)[0]
-
-    return gps_data
+    return clean_data
 
 
-def to_kml(gps_data):
+def create_paths(datapoints):
     """
-    Reads in GPS data, write to KML file
-    :param gps_data: The GPS data
+
+    :param datapoints:
+    :return:
     """
-    # Creates KML file
+    path = {
+        'Description': 'Altitude information is replaced with speed in knots',
+        'Color': '7F00ff00',
+        'Coords': []
+    }
+
+    for point in datapoints:
+        path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
+
+    return path
+
+
+def detect_left_turns(datapoints):
+    """
+
+    :param datapoints:
+    :return:
+    """
+
+
+def process_gps(filename):
+    """
+
+    :param filename: The GPS file
+    :return: A dictionary of relevant data to be written to KML
+    """
+    raw_data = read_file(filename)
+    clean_data = clean_datapoints(raw_data)
+    path = create_paths(clean_data['Coords'])
+    write_path(path, filename)
+    write_hazards(clean_data['Points'], filename)
+
+
+def write_path(path_data, filename):
+    """
+    Take processed path data and write to the '_Path.kml' file
+    :param path_data:
+    :return:
+    """
     kml = simplekml.Kml()
-
-    # Defines what altitude will represent
-    linestring = kml.newlinestring(description='Speed in Knots, instead of altitude.')
-
-    # Sets color and size of the line
-    linestring.style.color = simplekml.Color.yellow
-    linestring.style.width = 6
-
-    # Line settings
-    linestring.extrude = 1
-    linestring.tesselate = 1
-
-    # Needs to be relative to ground to ensure line is above ground
-    linestring.altitudemode = simplekml.AltitudeMode.relativetoground
-
-    school_zone_nw_lat = 43.087982
-    school_zone_nw_long = -77.682416
-    school_zone_se_lat = 43.085117
-    school_zone_se_long = -77.678254
-
-    driveway_nw_lat = 43.138589
-    driveway_nw_long = -77.438104
-    driveway_se_lat = 43.137629
-    driveway_se_long = -77.437092
-
-    school_zone = kml.newgroundoverlay(name='School')
-
-    school_zone.latlonbox.north = school_zone_nw_lat
-    school_zone.latlonbox.south = school_zone_se_lat
-    school_zone.latlonbox.east = school_zone_se_long
-    school_zone.latlonbox.west = school_zone_nw_long
-
-    school_zone.color = '7F0000ff'
-
-    school_zone.altitude = 300
-
-    driveway = kml.newgroundoverlay(name='Driveway')
-
-    driveway.latlonbox.north = driveway_nw_lat
-    driveway.latlonbox.south = driveway_se_lat
-    driveway.latlonbox.east = driveway_se_long
-    driveway.latlonbox.west = driveway_nw_long
-
-    driveway.color = '7Fff0000'
-
-    driveway.altitude = 300
-
-    coords = []
-    for coord in gps_data['Coords']:
-        if not ((school_zone_se_long > coord['Long'] > school_zone_nw_long) and (
-                school_zone_se_lat < coord['Lat'] < school_zone_nw_lat)) and not \
-                ((driveway_se_long > coord['Long'] > driveway_nw_long) and (
-                        driveway_se_lat < coord['Lat'] < driveway_nw_lat)):
-
-            coords.append([
-                float(coord['Long']),
-                float(coord['Lat']),
-                float(coord['Speed'])
-            ])
-
-    # Saves all KML coords to the file
-    linestring.coords = coords  # Sets kml coords to coords
-
-    for point in gps_data['Points']:
-
-        if not ((school_zone_se_long > point['Long'] > school_zone_nw_long) and (
-                school_zone_se_lat < point['Lat'] < school_zone_nw_lat)) and not \
-                ((driveway_se_long > point['Long'] > driveway_nw_long) and (
-                        driveway_se_lat < point['Lat'] < driveway_nw_lat)):
-
-            kml.newpoint(
-                name=point['Name'],
-                description=f"{point['Time']} {point['Date']}",
-                coords=[(point['Long'], point['Lat'])]
-            )
+    ls = kml.newlinestring(description=path_data['Description'])
+    ls.extrude = 1
+    ls.tesselate = 1
+    ls.altitudemode = simplekml.AltitudeMode.relativetoground
+    ls.coords = path_data['Coords']
+    ls.style.linestyle.width = 6
+    ls.style.linestyle.color = path_data['Color']
 
     Path("./kml").mkdir(exist_ok=True)
 
-    # Saves the KML file
-    kml.save('./kml/' + os.path.basename(gps_data['Filename']) + '.kml')
+    kml.save('./kml/' + os.path.basename(os.path.splitext(filename)[0]) + '_Path.kml')
+
+
+def write_hazards(hazard_data, filename):
+    """
+    Take processed hazard data and write to the '_Hazards.kml' file
+    :param hazard_data:
+    :return:
+    """
+    kml = simplekml.Kml()
+    for point in hazard_data:
+        kml.newpoint(
+            name='Stop',
+            description=f"{point['Time']} {point['Date']}",
+            coords=[(point['Long'], point['Lat'])]
+        )
+
+    Path("./kml").mkdir(exist_ok=True)
+
+    kml.save('./kml/' + os.path.basename(os.path.splitext(filename)[0]) + '_Hazards.kml')
 
 
 def main():
@@ -237,13 +187,7 @@ def main():
     for file in gps_files:
 
         print(f'Now parsing {file}')
-
-        data = process_gps(file)
-        to_kml(data)  # Converts to kml file
-
-    # TODO - Detect left turns, start and end boxes
-
-    # TODO - Left Turns - keep track of last X points, keep track of headings
+        process_gps(file)
 
 
 if __name__ == '__main__':
