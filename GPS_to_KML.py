@@ -122,6 +122,12 @@ def create_paths(datapoints):
 
     total = 0
 
+    acceleration = []
+
+    #TODO - Add all differences between 2 nodes speeds to list, get avaerage
+
+    times = dict([('7FD278F0', 0), ('7F2828EC', 0), ('7F319CDE', 0), ('7F63EFF7', 0), ('7F8DE087', 0)])
+
     for point in datapoints:
 
         if initial_timestamp is None:
@@ -139,9 +145,27 @@ def create_paths(datapoints):
         else:
             color = '7F8DE087'
         if color == path['Color']:
+
+            if len(path['Coords']) != 0:
+
+                speed1 = path['Coords'][-1][2]
+
+                speed2 = point['Speed']
+
+                acceleration.append(speed2 - speed1)
+
             path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
 
         else:
+
+            if len(path['Coords']) != 0:
+                speed1 = path['Coords'][-1][2]
+
+                speed2 = point['Speed']
+
+                acceleration.append(speed2 - speed1)
+
+
             path['Coords'].append((point['Long'], point['Lat'], point['Speed']))
 
             # print(f'Initial = {initial_timestamp}')
@@ -155,6 +179,10 @@ def create_paths(datapoints):
                 print(f'Shit\'s fucked {e}')
 
             # print(f'Total = {difference}')
+
+            temp = times[path['Color']]
+
+            times[path['Color']] = temp + difference.seconds
 
             total += difference.seconds
 
@@ -173,6 +201,9 @@ def create_paths(datapoints):
     paths.append(path)
 
     print(str(total//60))
+
+    # TODO This is not working yet, due to time difference not being factored in
+    avg_acceleration = sum(acceleration)/len(acceleration)
 
     return paths
 
